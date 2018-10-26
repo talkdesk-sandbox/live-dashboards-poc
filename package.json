@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "cobalt-react-components": "https://github.com/Talkdesk/cobalt-react-components.git#v16.2.0",
     "react": "^16.5.2",
     "react-dom": "^16.5.2",
+    "react-grid-layout": "^0.16.6",
     "react-scripts": "2.0.5"
   },
   "scripts": {
