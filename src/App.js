@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import CobaltRoot, { Page, Button, Card, Grid, Header, H1, H5, Icon, Section, Color, Divider, Tooltip, Paragraph, Dropdown, Loader } from 'cobalt-react-components'
+import CobaltRoot, { Page, Button, Card, Grid, Header, H1, H5, Icon, Section, Color, Divider, Tooltip, Paragraph, Dropdown, Loader, Message } from 'cobalt-react-components'
 import { WidthProvider, Responsive } from 'react-grid-layout'
 
 import 'react-grid-layout/css/styles.css'
@@ -75,7 +75,8 @@ class App extends Component {
           value: 0
         }
       },
-      subscriptions: {}
+      subscriptions: {},
+      messages: {}
     }
   }
 
@@ -119,7 +120,33 @@ class App extends Component {
       }
 
       const source = new EventSource(`${API_URL}/subscribe/${metricId}`)
+      console.log('The event source was initialized:', source.url, source.readyState)
+
       source.onmessage = event => this.updateMetric(metricId, event.data)
+      source.onerror = () => {
+        console.error('There was an error with the event source:', source.url, source.readyState)
+        this.setState(prevState => ({
+          ...prevState,
+          messages: {
+            ...prevState.messages,
+            [source.url]: {
+              id: source.url,
+              type: source.readyState === source.CLOSED ? 'danger' : 'warning',
+              text: source.readyState === source.CLOSED
+                ? 'The connection was unexpectedly closed. Please refresh the browser.'
+                : 'The connection is a bit unstable.'
+            }
+          }
+        }))
+      }
+      source.onopen = () => {
+        console.log('The connection is open:', source.url, source.readyState)
+        this.setState(prevState => ({
+          ...prevState,
+          messages: Object.keys(prevState.messages).reduce((acc, id) => id === source.url ? acc : { ...acc, [id]: prevState.messages[id] }, {})
+        }))
+      }
+
 
       return { ...subs, [metricId]: source }
     }, {})
@@ -138,6 +165,7 @@ class App extends Component {
       }
 
       subscription.close()
+      console.log('Closed event source:', subscription.url, subscription.readyState)
 
       return subs
     }, {})
@@ -185,7 +213,7 @@ class App extends Component {
   }
 
   render() {
-    const { dashboards, metrics, selectedDashboardId } = this.state
+    const { dashboards, metrics, selectedDashboardId, messages } = this.state
     const dashboard = dashboards[selectedDashboardId]
 
     return (
@@ -223,9 +251,18 @@ class App extends Component {
               </Header.Actions>
             </Header>
             <Page.Content>
-              <Section>
-                <Section.Content>
-                  <Grid>
+              <Grid>
+                <Section>
+                  <Section.Content noPadding>
+                    {Object.values(messages).map(message => (
+                      <Message id={message.id} danger={message.type === 'danger'} warning={message.type === 'warning'}>
+                          {message.text}
+                      </Message>
+                    ))}
+                  </Section.Content>
+                </Section>
+                <Section>
+                  <Section.Content>
                     {this.state.ready ? (
                       <Dashboard definition={dashboard.definition}>
                         {Object.values(dashboard.definition.widgets).map(widget => (
@@ -237,9 +274,9 @@ class App extends Component {
                         ))}
                       </Dashboard>
                     ) : <Loader />}
-                  </Grid>
-                </Section.Content>
-              </Section>
+                  </Section.Content>
+                </Section>
+              </Grid>
             </Page.Content>
           </Page>
         </div>
